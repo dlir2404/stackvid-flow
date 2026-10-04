@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>StackVid Flow Workbench</title>
+  <link rel="stylesheet" href="popup.css">
+  <style>
+    body {
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: #000000;
+    }
+    .workbench-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      padding: 16px;
+      gap: 14px;
+    }
+    .terminal-logs.expanded {
+      max-height: calc(100vh - 280px);
+      flex: 1;
+    }
+    .panel-card {
+      background: #09090b;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .card-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: #06b6d4;
+      letter-spacing: 0.06em;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      padding-bottom: 6px;
+    }
+    .tester-row {
+      display: flex;
+      gap: 8px;
+    }
+    .tester-input {
+      flex: 1;
+      background: #000000;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 4px;
+      padding: 6px 10px;
+      color: #ffffff;
+      font-size: 11px;
+    }
+    .tester-output {
+      background: #000000;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 4px;
+      padding: 8px;
+      max-height: 100px;
+      overflow-y: auto;
+      font-size: 9.5px;
+      color: #a1a1aa;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <div class="workbench-container">
+    <!-- Header -->
+    <header class="hud-header">
+      <div class="brand">
+        <svg class="brand-logo" viewBox="0 0 24 24" fill="none">
+          <path d="M4 1.5h7a2.5 2.5 0 0 1 2.5 2.5V5h-2V4a.5.5 0 0 0-.5-.5H4a.5.5 0 0 0-.5.5v7a.5.5 0 0 0 .5.5h1v2H4A2.5 2.5 0 0 1 1.5 11V4A2.5 2.5 0 0 1 4 1.5zm4 4h8a2.5 2.5 0 0 1 2.5 2.5V9h-2V8a.5.5 0 0 0-.5-.5H8a.5.5 0 0 0-.5.5v8a.5.5 0 0 0 .5.5h1v2H8A2.5 2.5 0 0 1 5.5 16V8A2.5 2.5 0 0 1 8 5.5zm4 4h8a2.5 2.5 0 0 1 2.5 2.5v8a2.5 2.5 0 0 1-2.5 2.5h-8a2.5 2.5 0 0 1-2.5-2.5v-8a2.5 2.5 0 0 1 2.5-2.5zm1.5 3v7l6-3.5-6-3.5z" fill="#06B6D4"/>
+        </svg>
+        <span class="brand-name">STACKVID</span>
+        <span class="brand-tag">WORKBENCH</span>
+      </div>
+      <span class="version-badge">SIDE PANEL v1.0.0</span>
+    </header>
+
+    <!-- Status Banner -->
+    <div class="status-banner">
+      <div class="status-row">
+        <div class="status-identity">
+          <span class="status-label">PROFILE ACCOUNT</span>
+          <span class="status-email" id="side-account-email">DISCOVERING...</span>
+        </div>
+        <div class="status-badge" id="side-conn-badge">
+          <span class="dot dot-waiting" id="side-conn-dot"></span>
+          <span class="status-text" id="side-conn-status">CONNECTING</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Manual RPC & Mint Tester -->
+    <div class="panel-card">
+      <span class="card-title">// DIAGNOSTIC TOKEN TESTER</span>
+      <div class="tester-row">
+        <button class="btn btn-primary" id="btn-test-mint">
+          TEST CAPTCHA MINT
+        </button>
+        <button class="btn btn-secondary" id="btn-side-reconnect">
+          RECONNECT WS
+        </button>
+      </div>
+      <div class="tester-output" id="test-output">Ready. Click 'TEST CAPTCHA MINT' to test token acquisition in Flow tab.</div>
+    </div>
+
+    <!-- Expanded Logs Stream -->
+    <div class="terminal-section" style="flex: 1;">
+      <div class="terminal-header">
+        <span class="terminal-title">// REALTIME EXECUTION STREAM</span>
+        <button class="btn-text" id="btn-side-clear">CLEAR</button>
+      </div>
+      <div class="terminal-logs expanded" id="side-logs-container">
+        <div class="log-empty">No events yet.</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="side_panel.js"></script>
+</body>
+</html>

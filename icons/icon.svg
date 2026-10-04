@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32">
+  <defs>
+    <linearGradient id="stackvid-c3c-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#818CF8" />
+      <stop offset="50%" stop-color="#6366F1" />
+      <stop offset="100%" stop-color="#06B6D4" />
+    </linearGradient>
+  </defs>
+  <path fill="url(#stackvid-c3c-grad)" d="M4 1.5h7a2.5 2.5 0 0 1 2.5 2.5V5h-2V4a.5.5 0 0 0-.5-.5H4a.5.5 0 0 0-.5.5v7a.5.5 0 0 0 .5.5h1v2H4A2.5 2.5 0 0 1 1.5 11V4A2.5 2.5 0 0 1 4 1.5zm4 4h8a2.5 2.5 0 0 1 2.5 2.5V9h-2V8a.5.5 0 0 0-.5-.5H8a.5.5 0 0 0-.5.5v8a.5.5 0 0 0 .5.5h1v2H8A2.5 2.5 0 0 1 5.5 16V8A2.5 2.5 0 0 1 8 5.5zm4 4h8a2.5 2.5 0 0 1 2.5 2.5v8a2.5 2.5 0 0 1-2.5 2.5h-8a2.5 2.5 0 0 1-2.5-2.5v-8a2.5 2.5 0 0 1 2.5-2.5zm1.5 3v7l6-3.5-6-3.5z"/>
+</svg>

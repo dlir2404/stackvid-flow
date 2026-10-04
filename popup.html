@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>StackVid Flow HUD</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="hud-container">
+    <!-- Header -->
+    <header class="hud-header">
+      <div class="brand">
+        <svg class="brand-logo" viewBox="0 0 24 24" fill="none">
+          <path d="M4 1.5h7a2.5 2.5 0 0 1 2.5 2.5V5h-2V4a.5.5 0 0 0-.5-.5H4a.5.5 0 0 0-.5.5v7a.5.5 0 0 0 .5.5h1v2H4A2.5 2.5 0 0 1 1.5 11V4A2.5 2.5 0 0 1 4 1.5zm4 4h8a2.5 2.5 0 0 1 2.5 2.5V9h-2V8a.5.5 0 0 0-.5-.5H8a.5.5 0 0 0-.5.5v8a.5.5 0 0 0 .5.5h1v2H8A2.5 2.5 0 0 1 5.5 16V8A2.5 2.5 0 0 1 8 5.5zm4 4h8a2.5 2.5 0 0 1 2.5 2.5v8a2.5 2.5 0 0 1-2.5 2.5h-8a2.5 2.5 0 0 1-2.5-2.5v-8a2.5 2.5 0 0 1 2.5-2.5zm1.5 3v7l6-3.5-6-3.5z" fill="#06B6D4"/>
+        </svg>
+        <span class="brand-name">STACKVID</span>
+        <span class="brand-tag">FLOW</span>
+      </div>
+      <div class="header-right">
+        <span class="version-badge">v1.0.0</span>
+        <button id="btn-side-panel" class="btn-icon" title="Open Side Panel">⤢</button>
+      </div>
+    </header>
+
+    <!-- Main Status Banner -->
+    <div class="status-banner">
+      <div class="status-row">
+        <div class="status-identity">
+          <span class="status-label">PROFILE ACCOUNT</span>
+          <span class="status-email" id="val-account-email">DISCOVERING...</span>
+        </div>
+        <div class="status-badge" id="conn-badge">
+          <span class="dot dot-waiting" id="conn-dot"></span>
+          <span class="status-text" id="conn-status">CONNECTING</span>
+        </div>
+      </div>
+      <div class="worker-meta">
+        <span class="meta-label">WORKER ID:</span>
+        <span class="meta-value" id="val-worker-id">—</span>
+      </div>
+    </div>
+
+    <!-- Live Telemetry Grid -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <span class="metric-label">ACTIVE JOBS</span>
+        <span class="metric-num text-cyan" id="val-active-jobs">0</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">SUCCESS RPC</span>
+        <span class="metric-num text-emerald" id="val-success-count">0</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">FAILED RPC</span>
+        <span class="metric-num text-red" id="val-fail-count">0</span>
+      </div>
+    </div>
+
+    <!-- Terminal Action Stream -->
+    <div class="terminal-section">
+      <div class="terminal-header">
+        <span class="terminal-title">// TERMINAL RPC STREAM</span>
+        <button class="btn-text" id="btn-clear-logs">CLEAR</button>
+      </div>
+      <div class="terminal-logs" id="terminal-logs-container">
+        <div class="log-empty">No RPC events captured yet. Waiting for jobs...</div>
+      </div>
+    </div>
+
+    <!-- Action Footer -->
+    <footer class="hud-footer">
+      <button class="btn btn-secondary" id="btn-reconnect">
+        <span class="btn-label">RECONNECT SERVICE</span>
+      </button>
+      <button class="btn btn-primary" id="btn-open-flow">
+        <span class="btn-label">OPEN FLOW TAB</span>
+      </button>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

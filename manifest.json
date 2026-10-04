@@ -1,0 +1,79 @@
+{
+  "manifest_version": 3,
+  "name": "StackVid Flow",
+  "version": "1.0.0",
+  "description": "High-Performance Google Flow & Veo 3.1 Bridge for StackVid Video Automation.",
+  "permissions": [
+    "storage",
+    "alarms",
+    "tabs",
+    "scripting",
+    "declarativeNetRequest",
+    "sidePanel"
+  ],
+  "host_permissions": [
+    "https://flow.google.com/*",
+    "https://flow-content.google/*",
+    "https://labs.google/*",
+    "https://aisandbox-pa.googleapis.com/*",
+    "http://127.0.0.1:9222/*",
+    "http://localhost:9222/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://flow.google.com/*",
+        "https://labs.google/fx/tools/flow*",
+        "https://labs.google/fx/*/tools/flow*"
+      ],
+      "js": [
+        "flow-guard.js",
+        "flow-bridge.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://flow.google.com/*",
+        "https://labs.google/fx/tools/flow*",
+        "https://labs.google/fx/*/tools/flow*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "referer_rules",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
+  },
+  "side_panel": {
+    "default_path": "side_panel.html"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "StackVid Flow HUD",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
