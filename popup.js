@@ -20,6 +20,33 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnOpenFlow = document.getElementById('btn-open-flow');
   const btnClearLogs = document.getElementById('btn-clear-logs');
   const btnSidePanel = document.getElementById('btn-side-panel');
+  const selRunnerType = document.getElementById('sel-runner-type');
+  const inputRunnerToken = document.getElementById('input-runner-token');
+  const btnSaveToken = document.getElementById('btn-save-token');
+  const elTokenMsg = document.getElementById('token-status-msg');
+
+  // Load stored runner credentials
+  chrome.storage.local.get(['runnerType', 'runnerToken'], (stored) => {
+    if (selRunnerType) selRunnerType.value = stored.runnerType || 'USER';
+    if (inputRunnerToken && stored.runnerToken) inputRunnerToken.value = stored.runnerToken;
+  });
+
+  btnSaveToken?.addEventListener('click', () => {
+    const runnerType = selRunnerType?.value || 'USER';
+    const runnerToken = inputRunnerToken?.value?.trim() || '';
+
+    chrome.storage.local.set({ runnerType, runnerToken }, () => {
+      if (elTokenMsg) {
+        elTokenMsg.textContent = '✅ Đã lưu cấu hình! Đang kết nối lại...';
+        elTokenMsg.style.color = '#10b981';
+        setTimeout(() => {
+          elTokenMsg.textContent = runnerType === 'USER' ? 'Chế độ User: lấy token tại /flow/fleet' : 'Chế độ System: dùng Admin Cluster Secret';
+          elTokenMsg.style.color = '#71717a';
+        }, 3000);
+      }
+      chrome.runtime.sendMessage({ action: 'RECONNECT' });
+    });
+  });
 
   function renderState(state) {
     if (!state) return;

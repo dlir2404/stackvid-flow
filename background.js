@@ -11,8 +11,7 @@ const FLOW_SERVICE_WS = 'ws://127.0.0.1:9222';
 const FLOW_TAB_URL = 'https://flow.google.com/';
 const FLOW_URL_MATCHERS = [
   'https://flow.google.com/*',
-  'https://labs.google/fx/tools/flow*',
-  'https://labs.google/fx/*/tools/flow*',
+  'https://labs.google/*',
 ];
 const CAPTCHA_SLOT = '__CAPTCHA__';
 
@@ -75,16 +74,23 @@ function connectFlowService() {
     ws.onopen = () => {
       setConnectionState('CONNECTED');
       appendLog('SYS', 'Connected to StackVid Flow Service');
-      ws.send(
-        JSON.stringify({
-          type: 'REGISTER_WORKER',
-          workerId,
-          accountEmail,
-          status: activeJobs > 0 ? 'BUSY' : 'IDLE',
-          activeJobs,
-          timestamp: Date.now(),
-        })
-      );
+      chrome.storage.local.get(['accountEmail', 'planTier', 'planName', 'runnerType', 'runnerToken'], (cached) => {
+        ws.send(
+          JSON.stringify({
+            type: 'REGISTER_WORKER',
+            workerId,
+            accountEmail: cached?.accountEmail || accountEmail,
+            planTier: cached?.planTier || 'PRO',
+            planName: cached?.planName || 'Google One AI Premium (Gemini Advanced)',
+            runnerType: cached?.runnerType || 'USER',
+            token: cached?.runnerToken || null,
+            verifiedFromGoogle: true,
+            status: activeJobs > 0 ? 'BUSY' : 'IDLE',
+            activeJobs,
+            timestamp: Date.now(),
+          })
+        );
+      });
     };
 
     ws.onmessage = async (event) => {
@@ -92,8 +98,12 @@ function connectFlowService() {
         const msg = JSON.parse(event.data);
         if (msg.method === 'batch_rpc') {
           await handleBatchRpc(msg);
+        } else if (msg.method === 'upload_video') {
+          await handleUploadVideo(msg);
         } else if (msg.type === 'ping') {
           ws.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
+        } else if (msg.type === 'reload') {
+          chrome.runtime.reload();
         }
       } catch (err) {
         console.error('[StackVid Worker] Message processing error:', err);
@@ -133,7 +143,11 @@ function sendResponse(payload) {
 
 async function ensureFlowTab() {
   const tabs = await chrome.tabs.query({ url: FLOW_URL_MATCHERS });
-  let candidate = tabs.find((t) => !t.discarded) || tabs[0];
+  let candidate =
+    tabs.find((t) => t.url && t.url.includes('/project/') && !t.discarded) ||
+    tabs.find((t) => t.active && !t.discarded) ||
+    tabs.find((t) => !t.discarded) ||
+    tabs[0];
 
   if (!candidate) {
     // Open a background Flow tab if not open
@@ -161,12 +175,33 @@ async function syncFlowTabIdentity() {
       requestId,
     });
 
-    if (result?.email && result.email !== accountEmail) {
+    if (result?.email) {
+      const emailChanged = result.email !== accountEmail;
       accountEmail = result.email;
-      await chrome.storage.local.set({ accountEmail });
-      appendLog('IDENT', `Identified profile account: ${accountEmail}`);
+      const detectedPlanTier = result.planTier || 'PRO';
+      const detectedPlanName = result.planName || 'Google One AI Premium (Gemini Advanced)';
+
+      await chrome.storage.local.set({
+        accountEmail,
+        planTier: detectedPlanTier,
+        planName: detectedPlanName,
+      });
+
+      if (emailChanged) {
+        appendLog('IDENT', `Identified profile account: ${accountEmail} [${detectedPlanName}]`);
+      }
+
       if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'UPDATE_IDENTITY', workerId, accountEmail }));
+        ws.send(
+          JSON.stringify({
+            type: 'UPDATE_IDENTITY',
+            workerId,
+            accountEmail,
+            planTier: detectedPlanTier,
+            planName: detectedPlanName,
+            verifiedFromGoogle: true,
+          })
+        );
       }
     }
   } catch {
@@ -176,10 +211,36 @@ async function syncFlowTabIdentity() {
 
 // ─── Batch RPC Execution ───────────────────────────────────
 
+async function sendMessageToTab(tabId, message) {
+  try {
+    return await chrome.tabs.sendMessage(tabId, message);
+  } catch (err) {
+    if (err.message && err.message.includes('Receiving end does not exist')) {
+      console.warn(`[StackVid Worker] Content script missing on tab ${tabId}. Re-injecting...`);
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          world: 'MAIN',
+          files: ['flow-guard.js', 'recaptcha_enterprise.js', 'recaptcha__en.js', 'flow-bridge.js'],
+        });
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          files: ['content.js'],
+        });
+        await new Promise((r) => setTimeout(r, 500));
+        return await chrome.tabs.sendMessage(tabId, message);
+      } catch (injectErr) {
+        console.error('[StackVid Worker] Failed to re-inject content script:', injectErr);
+      }
+    }
+    throw err;
+  }
+}
+
 async function handleBatchRpc(msg) {
   const { id, params } = msg;
-  const { rpcid, captchaAction, match } = params || {};
-  let freq = params?.freq;
+  const { rpcid, match } = params;
+  let { freq, captchaAction } = params;
 
   if (!rpcid || !freq) {
     sendResponse({ id, status: 400, error: 'MISSING_RPC_OR_FREQ' });
@@ -199,7 +260,7 @@ async function handleBatchRpc(msg) {
     // Step 1: Mint Captcha Token if needed
     if (captchaAction) {
       const captchaReqId = crypto.randomUUID();
-      const mintResult = await chrome.tabs.sendMessage(tab.id, {
+      const mintResult = await sendMessageToTab(tab.id, {
         action: 'MINT_CAPTCHA',
         requestId: captchaReqId,
         payload: { captchaAction },
@@ -214,7 +275,7 @@ async function handleBatchRpc(msg) {
 
     // Step 2: Execute Batch RPC in page context
     const rpcReqId = crypto.randomUUID();
-    const rpcResult = await chrome.tabs.sendMessage(tab.id, {
+    const rpcResult = await sendMessageToTab(tab.id, {
       action: 'EXECUTE_BATCH_RPC',
       requestId: rpcReqId,
       payload: { rpcid, freq, match },
@@ -232,6 +293,120 @@ async function handleBatchRpc(msg) {
     metrics.lastError = err.message || 'RPC_FAILED';
     updateLog(logEntry.id, 'FAILED', err.message || 'Execution error');
     sendResponse({ id, status: 502, error: err.message || 'RPC_FAILED' });
+  } finally {
+    activeJobs = Math.max(0, activeJobs - 1);
+    await chrome.storage.local.set({ metrics });
+    broadcastState();
+  }
+}
+
+async function handleUploadVideo(msg) {
+  const { id, params } = msg;
+  const logEntry = appendLog(
+    'UPLOAD_VIDEO',
+    `Uploading ${params.fileName || 'video.mp4'} (${Math.round(params.videoBase64?.length / 1024)} KB) to ${params.projectId}...`
+  );
+  activeJobs++;
+  broadcastState();
+
+  try {
+    // 1. Decode Base64 to binary Uint8Array / Blob directly in Service Worker
+    const binaryString = atob(params.videoBase64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    const blob = new Blob([bytes], { type: 'video/mp4' });
+    const rawDurationMs = Math.round((params.durationSeconds || 15) * 1000);
+    // Google Flow Scotty hard-caps video upload trim to 30,000ms (30s). Values > 30000 cause HTTP 500.
+    const durationMs = Math.max(1000, Math.min(30000, rawDurationMs));
+
+    const tab = await ensureFlowTab();
+    let targetProjectId = params.projectId;
+    const tabProjMatch = tab?.url?.match(/\/project\/([0-9a-fA-F-]{36})/);
+    if (tabProjMatch && (!targetProjectId || targetProjectId.startsWith('v2v_') || !targetProjectId.includes('-'))) {
+      targetProjectId = tabProjMatch[1];
+    }
+
+    // Step 1: Start Resumable Upload Handshake
+    const startUrl = `https://flow.google.com/upload/v1/flow/upload/video/${encodeURIComponent(targetProjectId)}`;
+    const startRes = await fetch(startUrl, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
+        slug: params.fileName || 'video.mp4',
+        'x-goog-upload-command': 'start',
+        'x-goog-upload-header-content-length': String(blob.size),
+        'x-goog-upload-protocol': 'resumable',
+        'x-trim-start': '0',
+        'x-trim-end': String(durationMs),
+      },
+    });
+
+    if (!startRes.ok) {
+      const txt = await startRes.text().catch(() => '');
+      throw new Error(`Upload handshake failed: HTTP ${startRes.status} ${txt}`);
+    }
+
+    const uploadUrl = startRes.headers.get('x-goog-upload-url');
+    if (!uploadUrl) {
+      throw new Error('Upload handshake returned no x-goog-upload-url header');
+    }
+
+    // Step 2: Upload Video Binary
+    const uploadHeaders = {
+      'content-type': 'application/x-www-form-urlencoded;charset=utf-8',
+      slug: params.fileName || 'video.mp4',
+      'x-goog-upload-command': 'upload, finalize',
+      'x-goog-upload-offset': '0',
+      'x-trim-start': '0',
+      'x-trim-end': String(durationMs),
+    };
+
+    const uploadRes = await fetch(uploadUrl, {
+      method: 'POST',
+      credentials: 'include',
+      headers: uploadHeaders,
+      body: blob,
+    });
+
+    if (!uploadRes.ok) {
+      const errText = await uploadRes.text().catch(() => '');
+      throw new Error(`Upload video binary failed: HTTP ${uploadRes.status} ${errText}`.trim());
+    }
+
+    const uploadJson = await uploadRes.json();
+    const mediaId = uploadJson.mediaId || uploadJson.media?.name;
+    if (!mediaId) {
+      throw new Error(`Upload response carried no mediaId: ${JSON.stringify(uploadJson)}`);
+    }
+
+    // Step 3: Register media with RPC iVqlKd (using handleBatchRpc which runs in tab)
+    try {
+      const tab = await ensureFlowTab();
+      const rpcReqId = crypto.randomUUID();
+      await chrome.tabs.sendMessage(tab.id, {
+        action: 'EXECUTE_BATCH_RPC',
+        requestId: rpcReqId,
+        payload: {
+          rpcid: 'iVqlKd',
+          freq: JSON.stringify([[["iVqlKd", JSON.stringify([mediaId, [], [Math.round(params.durationSeconds || 15)]]), null, "generic"]]]),
+        },
+      });
+    } catch (e) {
+      console.warn('[StackVid] iVqlKd registration warning:', e);
+    }
+
+    metrics.successCount++;
+    updateLog(logEntry.id, 'SUCCESS', `Uploaded video mediaId: ${mediaId}`);
+    sendResponse({ id, status: 200, mediaId });
+  } catch (err) {
+    metrics.failCount++;
+    metrics.lastError = err.message || 'UPLOAD_FAILED';
+    updateLog(logEntry.id, 'FAILED', err.message || 'Upload error');
+    sendResponse({ id, status: 502, error: err.message || 'UPLOAD_FAILED' });
   } finally {
     activeJobs = Math.max(0, activeJobs - 1);
     await chrome.storage.local.set({ metrics });

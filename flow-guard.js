@@ -225,6 +225,45 @@
         if (token) return { token: String(token), method: 'ASSIGN_NEUTER_FALLBACK' };
 
         throw new Error('TOKEN_MINT_RETURNED_EMPTY');
+      } catch (err) {
+        console.warn('[StackVid Guard] Neuter execution failed, attempting invisible widget fallback...', err);
+
+        // Strategy 3: Invisible Widget Render Fallback
+        try {
+          let host = document.getElementById('stackvid-recaptcha-host');
+          if (!host) {
+            host = document.createElement('div');
+            host.id = 'stackvid-recaptcha-host';
+            host.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;';
+            document.documentElement.appendChild(host);
+          }
+
+          const widgetId = await new Promise((resolve, reject) => {
+            try {
+              const id = window.grecaptcha?.enterprise?.render(host, {
+                sitekey: siteKey,
+                size: 'invisible',
+                callback: () => {},
+                'error-callback': (m) => reject(new Error('render_error: ' + m)),
+              });
+              resolve(id);
+            } catch (e) {
+              reject(e);
+            }
+          });
+
+          const execFn = typeof this.#pristineMethod === 'function' ? this.#pristineMethod : window.grecaptcha?.enterprise?.execute;
+          if (typeof execFn !== 'function') throw new Error('EXECUTE_NOT_AVAILABLE');
+          const widgetPromise = execFn(widgetId, { action });
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('WIDGET_EXECUTE_TIMEOUT')), timeoutMs)
+          );
+          const token = await Promise.race([widgetPromise, timeoutPromise]);
+          if (token) return { token: String(token), method: 'WIDGET_RENDER_FALLBACK' };
+        } catch (widgetErr) {
+          throw new Error(err.message || 'TOKEN_MINT_FAILED');
+        }
+        throw err;
       } finally {
         Object.assign = nativeAssign;
       }

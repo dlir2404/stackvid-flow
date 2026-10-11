@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnTestMint.disabled = true;
     elTestOutput.textContent = 'Probing active Flow tab and minting token...';
 
-    const tabs = await chrome.tabs.query({ url: ['https://flow.google.com/*', 'https://labs.google/fx/tools/flow*'] });
+    const tabs = await chrome.tabs.query({ url: ['https://flow.google.com/*', 'https://labs.google/*'] });
     if (!tabs.length) {
       elTestOutput.textContent = 'ERROR: No active flow.google.com tab found in this Chrome profile.';
       btnTestMint.disabled = false;

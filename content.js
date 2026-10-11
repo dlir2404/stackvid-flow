@@ -84,7 +84,11 @@
         if (event.detail?.requestId === requestId) {
           clearTimeout(timeoutTimer);
           window.removeEventListener('STACKVID_PROBE_IDENTITY_RESULT', responseHandler);
-          sendResponse({ email: event.detail.email });
+          sendResponse({
+            email: event.detail.email,
+            planTier: event.detail.planTier,
+            planName: event.detail.planName,
+          });
         }
       };
 
@@ -92,6 +96,39 @@
       window.dispatchEvent(
         new CustomEvent('STACKVID_PROBE_IDENTITY', {
           detail: { requestId },
+        })
+      );
+      return true;
+    }
+
+    // 4. Relay Video Upload
+    if (action === 'UPLOAD_VIDEO') {
+      const timeoutTimer = setTimeout(() => {
+        window.removeEventListener('STACKVID_UPLOAD_VIDEO_RESULT', responseHandler);
+        sendResponse({ error: 'UPLOAD_VIDEO_TIMEOUT' });
+      }, 180000);
+
+      const responseHandler = (event) => {
+        if (event.detail?.requestId === requestId) {
+          clearTimeout(timeoutTimer);
+          window.removeEventListener('STACKVID_UPLOAD_VIDEO_RESULT', responseHandler);
+          sendResponse({
+            mediaId: event.detail.mediaId,
+            error: event.detail.error,
+          });
+        }
+      };
+
+      window.addEventListener('STACKVID_UPLOAD_VIDEO_RESULT', responseHandler);
+      window.dispatchEvent(
+        new CustomEvent('STACKVID_UPLOAD_VIDEO', {
+          detail: {
+            requestId,
+            projectId: payload?.projectId,
+            videoBase64: payload?.videoBase64,
+            fileName: payload?.fileName,
+            durationSeconds: payload?.durationSeconds,
+          },
         })
       );
       return true;

@@ -26,11 +26,12 @@
     {
       "matches": [
         "https://flow.google.com/*",
-        "https://labs.google/fx/tools/flow*",
-        "https://labs.google/fx/*/tools/flow*"
+        "https://labs.google/*"
       ],
       "js": [
         "flow-guard.js",
+        "recaptcha_enterprise.js",
+        "recaptcha__en.js",
         "flow-bridge.js"
       ],
       "run_at": "document_start",
@@ -39,13 +40,24 @@
     {
       "matches": [
         "https://flow.google.com/*",
-        "https://labs.google/fx/tools/flow*",
-        "https://labs.google/fx/*/tools/flow*"
+        "https://labs.google/*"
       ],
       "js": [
         "content.js"
       ],
       "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "recaptcha_enterprise.js",
+        "recaptcha__en.js"
+      ],
+      "matches": [
+        "https://flow.google.com/*",
+        "https://labs.google/*"
+      ]
     }
   ],
   "declarative_net_request": {
