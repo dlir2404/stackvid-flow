@@ -7,7 +7,7 @@
  * (c) 2026 StackVid Automation. Clean-Room Implementation.
  */
 
-const FLOW_SERVICE_WS = 'ws://127.0.0.1:9222';
+const DEFAULT_FLOW_SERVICE_WS = 'ws://127.0.0.1:9222';
 const FLOW_TAB_URL = 'https://flow.google.com/';
 const FLOW_URL_MATCHERS = [
   'https://flow.google.com/*',
@@ -20,6 +20,23 @@ let workerId = null;
 let accountEmail = null;
 let connectionState = 'DISCONNECTED'; // DISCONNECTED | CONNECTING | CONNECTED
 let activeJobs = 0;
+let tabExecutionQueue = Promise.resolve();
+let lastTabExecutionTime = 0;
+const MIN_TAB_EXECUTION_GAP_MS = 3000;
+
+async function executeWithGap(fn) {
+  const previous = tabExecutionQueue;
+  tabExecutionQueue = (async () => {
+    await previous.catch(() => {});
+    const elapsed = Date.now() - lastTabExecutionTime;
+    if (elapsed < MIN_TAB_EXECUTION_GAP_MS) {
+      await new Promise((r) => setTimeout(r, MIN_TAB_EXECUTION_GAP_MS - elapsed));
+    }
+    lastTabExecutionTime = Date.now();
+    return await fn();
+  })();
+  return tabExecutionQueue;
+}
 let metrics = {
   totalCount: 0,
   successCount: 0,
@@ -61,7 +78,16 @@ function setConnectionState(state) {
   broadcastState();
 }
 
-function connectFlowService() {
+async function getFlowWsUrl() {
+  try {
+    const stored = await chrome.storage.local.get(['flowServerWsUrl']);
+    return stored?.flowServerWsUrl || DEFAULT_FLOW_SERVICE_WS;
+  } catch {
+    return DEFAULT_FLOW_SERVICE_WS;
+  }
+}
+
+async function connectFlowService() {
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
     return;
   }
@@ -69,11 +95,12 @@ function connectFlowService() {
   setConnectionState('CONNECTING');
 
   try {
-    ws = new WebSocket(FLOW_SERVICE_WS);
+    const targetWsUrl = await getFlowWsUrl();
+    ws = new WebSocket(targetWsUrl);
 
     ws.onopen = () => {
       setConnectionState('CONNECTED');
-      appendLog('SYS', 'Connected to StackVid Flow Service');
+      appendLog('SYS', `Connected to StackVid Flow Service (${targetWsUrl})`);
       chrome.storage.local.get(['accountEmail', 'planTier', 'planName', 'runnerType', 'runnerToken'], (cached) => {
         ws.send(
           JSON.stringify({
@@ -97,9 +124,9 @@ function connectFlowService() {
       try {
         const msg = JSON.parse(event.data);
         if (msg.method === 'batch_rpc') {
-          await handleBatchRpc(msg);
+          executeWithGap(() => handleBatchRpc(msg));
         } else if (msg.method === 'upload_video') {
-          await handleUploadVideo(msg);
+          executeWithGap(() => handleUploadVideo(msg));
         } else if (msg.type === 'ping') {
           ws.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
         } else if (msg.type === 'reload') {
