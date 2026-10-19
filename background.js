@@ -16,7 +16,7 @@ const FLOW_URL_MATCHERS = [
 const CAPTCHA_SLOT = '__CAPTCHA__';
 
 let ws = null;
-let workerId = null;
+let workerId = 'worker-' + (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID().slice(0, 8) : Math.random().toString(36).slice(2, 10));
 let accountEmail = null;
 let connectionState = 'DISCONNECTED'; // DISCONNECTED | CONNECTING | CONNECTED
 let activeJobs = 0;
@@ -58,11 +58,13 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 
 async function bootstrap() {
   const stored = await chrome.storage.local.get(['workerId', 'accountEmail', 'metrics']);
-  workerId = stored.workerId || `worker-${crypto.randomUUID().slice(0, 8)}`;
+  if (stored.workerId && typeof stored.workerId === 'string' && stored.workerId !== 'null') {
+    workerId = stored.workerId;
+  } else {
+    await chrome.storage.local.set({ workerId });
+  }
   accountEmail = stored.accountEmail || null;
   if (stored.metrics) Object.assign(metrics, stored.metrics);
-
-  await chrome.storage.local.set({ workerId });
 
   chrome.alarms.create('ws_ping', { periodInMinutes: 0.4 });
   chrome.alarms.create('tab_sync', { periodInMinutes: 1.0 });
