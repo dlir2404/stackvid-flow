@@ -24,11 +24,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const inputRunnerToken = document.getElementById('input-runner-token');
   const btnSaveToken = document.getElementById('btn-save-token');
   const elTokenMsg = document.getElementById('token-status-msg');
+  const selServerEnv = document.getElementById('sel-server-env');
 
-  // Load stored runner credentials
-  chrome.storage.local.get(['runnerType', 'runnerToken'], (stored) => {
+  // Load stored runner credentials & server env
+  chrome.storage.local.get(['runnerType', 'runnerToken', 'flowServerWsUrl'], (stored) => {
     if (selRunnerType) selRunnerType.value = stored.runnerType || 'USER';
     if (inputRunnerToken && stored.runnerToken) inputRunnerToken.value = stored.runnerToken;
+    if (selServerEnv) selServerEnv.value = stored.flowServerWsUrl || 'wss://api.stackvid.dev/fleet-ws';
+  });
+
+  selServerEnv?.addEventListener('change', () => {
+    const flowServerWsUrl = selServerEnv.value;
+    chrome.storage.local.set({ flowServerWsUrl }, () => {
+      chrome.runtime.sendMessage({ action: 'RECONNECT' });
+    });
   });
 
   btnSaveToken?.addEventListener('click', () => {

@@ -7,7 +7,7 @@
  * (c) 2026 StackVid Automation. Clean-Room Implementation.
  */
 
-const DEFAULT_FLOW_SERVICE_WS = 'ws://127.0.0.1:9222';
+const DEFAULT_FLOW_SERVICE_WS = 'wss://api.stackvid.dev/fleet-ws';
 const FLOW_TAB_URL = 'https://flow.google.com/';
 const FLOW_URL_MATCHERS = [
   'https://flow.google.com/*',

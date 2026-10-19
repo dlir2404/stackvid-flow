@@ -56,6 +56,17 @@
       <div id="token-status-msg" style="font-size: 9px; color: #71717a; margin-top: 4px;">Chế độ User: lấy token tại Dashboard /flow/fleet</div>
     </div>
 
+    <!-- Server Endpoint Selection -->
+    <div class="status-banner" style="padding: 6px 10px; background: rgba(255, 255, 255, 0.02); margin-top: 6px;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span class="status-label" style="font-weight: 700;">MÁY CHỦ FLEET</span>
+        <select id="sel-server-env" style="background: #18181b; color: #10b981; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 4px; padding: 2px 6px; font-size: 10px; font-family: inherit;">
+          <option value="wss://api.stackvid.dev/fleet-ws">Cloud Server (api.stackvid.dev) [Mặc định]</option>
+          <option value="ws://127.0.0.1:9222">Local Dev (127.0.0.1:9222)</option>
+        </select>
+      </div>
+    </div>
+
     <!-- Live Telemetry Grid -->
     <div class="metrics-grid">
       <div class="metric-card">
