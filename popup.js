@@ -31,6 +31,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (selRunnerType) selRunnerType.value = stored.runnerType || 'USER';
     if (inputRunnerToken && stored.runnerToken) inputRunnerToken.value = stored.runnerToken;
     if (selServerEnv) selServerEnv.value = stored.flowServerWsUrl || 'wss://api.stackvid.dev/fleet-ws';
+
+    if (elTokenMsg) {
+      if (!stored.runnerToken) {
+        elTokenMsg.textContent = '⚠️ Chưa nhập Token! Hãy dán Personal Runner Token từ /flow/fleet';
+        elTokenMsg.style.color = '#f59e0b';
+      } else {
+        elTokenMsg.textContent = stored.runnerType === 'SYSTEM' ? 'Chế độ System: dùng Admin Cluster Secret' : 'Chế độ User: đã liên kết Token thành công';
+        elTokenMsg.style.color = '#10b981';
+      }
+    }
   });
 
   selServerEnv?.addEventListener('change', () => {

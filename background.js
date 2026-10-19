@@ -87,9 +87,16 @@ async function getFlowWsUrl() {
   }
 }
 
-async function connectFlowService() {
-  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+async function connectFlowService(force = false) {
+  if (!force && ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
     return;
+  }
+
+  if (force && ws) {
+    try {
+      ws.close();
+    } catch {}
+    ws = null;
   }
 
   setConnectionState('CONNECTING');
@@ -102,6 +109,7 @@ async function connectFlowService() {
       setConnectionState('CONNECTED');
       appendLog('SYS', `Connected to StackVid Flow Service (${targetWsUrl})`);
       chrome.storage.local.get(['accountEmail', 'planTier', 'planName', 'runnerType', 'runnerToken'], (cached) => {
+        const token = cached?.runnerToken?.trim() || null;
         ws.send(
           JSON.stringify({
             type: 'REGISTER_WORKER',
@@ -110,7 +118,7 @@ async function connectFlowService() {
             planTier: cached?.planTier || 'PRO',
             planName: cached?.planName || 'Google One AI Premium (Gemini Advanced)',
             runnerType: cached?.runnerType || 'USER',
-            token: cached?.runnerToken || null,
+            token,
             verifiedFromGoogle: true,
             status: activeJobs > 0 ? 'BUSY' : 'IDLE',
             activeJobs,
@@ -503,7 +511,7 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     });
   }
   if (msg.action === 'RECONNECT') {
-    connectFlowService();
+    connectFlowService(true);
     reply({ ok: true });
   }
   if (msg.action === 'CLEAR_LOGS') {
