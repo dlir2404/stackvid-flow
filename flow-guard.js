@@ -18,6 +18,7 @@
     #captureLayer = null;
     #isCleaned = false;
     #pollTimer = null;
+    #widgetPromise = null;
 
     constructor() {
       this.#initWatchers();
@@ -228,30 +229,38 @@
       } catch (err) {
         console.warn('[StackVid Guard] Neuter execution failed, attempting invisible widget fallback...', err);
 
-        // Strategy 3: Invisible Widget Render Fallback
+        // Strategy 3: Invisible Widget Render Fallback (Cached single-instance widget)
         try {
-          let host = document.getElementById('stackvid-recaptcha-host');
-          if (!host) {
-            host = document.createElement('div');
-            host.id = 'stackvid-recaptcha-host';
-            host.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;';
-            document.documentElement.appendChild(host);
+          if (!this.#widgetPromise) {
+            this.#widgetPromise = (async () => {
+              let host = document.getElementById('stackvid-recaptcha-host');
+              if (!host) {
+                host = document.createElement('div');
+                host.id = 'stackvid-recaptcha-host';
+                host.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;';
+                document.documentElement.appendChild(host);
+              }
+
+              return await new Promise((resolve, reject) => {
+                try {
+                  const id = window.grecaptcha?.enterprise?.render(host, {
+                    sitekey: siteKey,
+                    size: 'invisible',
+                    callback: () => {},
+                    'error-callback': (m) => reject(new Error('render_error: ' + m)),
+                  });
+                  resolve(id);
+                } catch (e) {
+                  reject(new Error('render_threw: ' + (e && e.message || e)));
+                }
+              });
+            })().catch((e) => {
+              this.#widgetPromise = null;
+              throw e;
+            });
           }
 
-          const widgetId = await new Promise((resolve, reject) => {
-            try {
-              const id = window.grecaptcha?.enterprise?.render(host, {
-                sitekey: siteKey,
-                size: 'invisible',
-                callback: () => {},
-                'error-callback': (m) => reject(new Error('render_error: ' + m)),
-              });
-              resolve(id);
-            } catch (e) {
-              reject(e);
-            }
-          });
-
+          const widgetId = await this.#widgetPromise;
           const execFn = typeof this.#pristineMethod === 'function' ? this.#pristineMethod : window.grecaptcha?.enterprise?.execute;
           if (typeof execFn !== 'function') throw new Error('EXECUTE_NOT_AVAILABLE');
           const widgetPromise = execFn(widgetId, { action });
@@ -261,7 +270,7 @@
           const token = await Promise.race([widgetPromise, timeoutPromise]);
           if (token) return { token: String(token), method: 'WIDGET_RENDER_FALLBACK' };
         } catch (widgetErr) {
-          throw new Error(err.message || 'TOKEN_MINT_FAILED');
+          throw new Error(widgetErr.message || err.message || 'TOKEN_MINT_FAILED');
         }
         throw err;
       } finally {
