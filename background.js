@@ -69,8 +69,19 @@ async function bootstrap() {
   chrome.alarms.create('ws_ping', { periodInMinutes: 0.4 });
   chrome.alarms.create('tab_sync', { periodInMinutes: 1.0 });
 
+  /**
+   * Find out who we are before announcing ourselves.
+   *
+   * These used to start together, and on a fresh install the register message won the race --
+   * so the service was told `accountEmail: null`, and the backend had to stand for this runner
+   * under a made-up name until the probe landed. A runner is its Google account; registering
+   * before knowing which one meant the same machine ended up with two identities on the
+   * server, and the same reference image uploaded to Google twice.
+   *
+   * It costs nothing when there is no Flow tab: the probe returns immediately.
+   */
+  await syncFlowTabIdentity();
   connectFlowService();
-  void syncFlowTabIdentity();
 }
 
 // ─── WebSocket Client ──────────────────────────────────────
